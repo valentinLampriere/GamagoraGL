@@ -9,6 +9,8 @@
 #include <fstream>
 #include <string>
 
+#include "stl.h"
+
 #define TINYPLY_IMPLEMENTATION
 //#include <tinyply.h>
 
@@ -53,7 +55,7 @@ std::vector<Particule> MakeParticules(const int n)
 				distribution01(generator),
 				distribution01(generator)
 				},
-				{0.f, 0.f, 0.f},
+				{ 0., 0., 0. },
 				{ distribution01(generator) * 50 }
 				});
 	}
@@ -162,8 +164,17 @@ int main(void)
 	// Callbacks
 	glDebugMessageCallback(opengl_error_callback, nullptr);
 
-	const size_t nParticules = 1000;
-	const auto particules = MakeParticules(nParticules);
+	//const size_t nParticules = 100;
+	//auto particules = MakeParticules(nParticules);
+
+	// Load logo
+	std::vector<Triangle> triangles = ReadStl("buddha.stl");
+	std::vector<glm::vec3> vertices;
+	for (int i = 0; i < triangles.size(); i++) {
+		vertices.push_back(triangles[i].p0);
+		vertices.push_back(triangles[i].p1);
+		vertices.push_back(triangles[i].p2);
+	}
 
 	// Shader
 	const auto vertex = MakeShader(GL_VERTEX_SHADER, "shader.vert");
@@ -173,7 +184,6 @@ int main(void)
 
 	glUseProgram(program);
 
-
 	// Buffers
 	GLuint vbo, vao;
 	glGenBuffers(1, &vbo);
@@ -181,24 +191,22 @@ int main(void)
 
 	glBindVertexArray(vao);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glBufferData(GL_ARRAY_BUFFER, nParticules * sizeof(Particule), particules.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), vertices.data(), GL_STATIC_DRAW);
 
 	// Bindings
 	const auto indexPosition = glGetAttribLocation(program, "position");
-	glVertexAttribPointer(indexPosition, 3, GL_FLOAT, GL_FALSE, sizeof(Particule), reinterpret_cast<GLvoid*>(offsetof(Particule, position)));
+	glVertexAttribPointer(indexPosition, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), nullptr);
 	glEnableVertexAttribArray(indexPosition);
-
+	
+	/*
 	const auto indexColor = glGetAttribLocation(program, "color");
 	glVertexAttribPointer(indexColor, 3, GL_FLOAT, GL_FALSE, sizeof(Particule), reinterpret_cast<GLvoid*>(offsetof(Particule, color)));
 	glEnableVertexAttribArray(indexColor);
-
-	const auto indexVelocity = glGetAttribLocation(program, "velocity");
-	glVertexAttribPointer(indexVelocity, 3, GL_FLOAT, GL_FALSE, sizeof(Particule), reinterpret_cast<GLvoid*>(offsetof(Particule, velocity)));
-	glEnableVertexAttribArray(indexVelocity);
-
+	
 	const auto indexSize = glGetAttribLocation(program, "size");
 	glVertexAttribPointer(indexSize, 1, GL_FLOAT, GL_FALSE, sizeof(Particule), reinterpret_cast<GLvoid*>(offsetof(Particule, size)));
 	glEnableVertexAttribArray(indexSize);
+	*/
 
 	glPointSize(20.f);
 
@@ -206,17 +214,29 @@ int main(void)
 
 	while (!glfwWindowShouldClose(window)) {
 		int width, height;
+		/*double xpos, ypos;
+		float u_time = glfwGetTime();
 
-		glUniform1f(glGetUniformLocation(program, "u_time"), glfwGetTime());
 
-		glfwGetFramebufferSize(window, &width, &height);
+		glfwGetCursorPos(window, &xpos, &ypos);
+		xpos = xpos / width;
+		ypos = ypos / height;
 
-		glViewport(0, 0, width, height);
+		glUniform1f(glGetUniformLocation(program, "u_time"), u_time);
+		glUniform2d(glGetUniformLocation(program, "mousePos"), xpos, ypos);
+		*/
+
+		/*for (int i = 0; i < particules.size(); i++) {
+			particules[i].velocity += glm::vec3(0., -0.001, 0.) * u_time;
+			particules[i].position += particules[i].velocity * u_time;
+		}
+
+		glBufferSubData(GL_ARRAY_BUFFER, 0, nParticules * sizeof(Particule), particules.data());*/
 
 		glClear(GL_COLOR_BUFFER_BIT);
-		// glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
 
-		glDrawArrays(GL_POINTS, 0, nParticules);
+		//glDrawArrays(GL_POINTS, 0, nParticules);
+		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
