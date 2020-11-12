@@ -1,6 +1,10 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/vec3.hpp>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 
 #include <vector>
 #include <iostream>
@@ -23,44 +27,6 @@ static void key_callback(GLFWwindow* window, int key, int /*scancode*/, int acti
 {
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, GLFW_TRUE);
-}
-
-/* PARTICULES */
-struct Particule {
-	glm::vec3 position;
-	glm::vec3 color;
-	glm::vec3 velocity;
-	float size;
-};
-
-std::vector<Particule> MakeParticules(const int n)
-{
-	std::default_random_engine generator;
-	std::uniform_real_distribution<float> distribution01(0, 1);
-	std::uniform_real_distribution<float> distributionWorld(-1, 1);
-
-	std::vector<Particule> p;
-	p.reserve(n);
-
-	for(int i = 0; i < n; i++)
-	{
-		p.push_back(Particule{
-				{
-				distributionWorld(generator),
-				distributionWorld(generator),
-				distributionWorld(generator)
-				},
-				{
-				distribution01(generator),
-				distribution01(generator),
-				distribution01(generator)
-				},
-				{ 0., 0., 0. },
-				{ distribution01(generator) * 50 }
-				});
-	}
-
-	return p;
 }
 
 GLuint MakeShader(GLuint t, std::string path)
@@ -164,9 +130,6 @@ int main(void)
 	// Callbacks
 	glDebugMessageCallback(opengl_error_callback, nullptr);
 
-	//const size_t nParticules = 100;
-	//auto particules = MakeParticules(nParticules);
-
 	// Load logo
 	std::vector<Triangle> triangles = ReadStl("buddha.stl");
 	std::vector<glm::vec3> vertices;
@@ -197,49 +160,41 @@ int main(void)
 	const auto indexPosition = glGetAttribLocation(program, "position");
 	glVertexAttribPointer(indexPosition, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), nullptr);
 	glEnableVertexAttribArray(indexPosition);
-	
-	/*
-	const auto indexColor = glGetAttribLocation(program, "color");
-	glVertexAttribPointer(indexColor, 3, GL_FLOAT, GL_FALSE, sizeof(Particule), reinterpret_cast<GLvoid*>(offsetof(Particule, color)));
-	glEnableVertexAttribArray(indexColor);
-	
-	const auto indexSize = glGetAttribLocation(program, "size");
-	glVertexAttribPointer(indexSize, 1, GL_FLOAT, GL_FALSE, sizeof(Particule), reinterpret_cast<GLvoid*>(offsetof(Particule, size)));
-	glEnableVertexAttribArray(indexSize);
-	*/
 
 	glPointSize(20.f);
 
 	glEnable(GL_PROGRAM_POINT_SIZE);
 
 	while (!glfwWindowShouldClose(window)) {
-		int width, height;
-		/*double xpos, ypos;
 		float u_time = glfwGetTime();
+		int width, height;
 
+		glfwGetFramebufferSize(window, &width, &height);
 
-		glfwGetCursorPos(window, &xpos, &ypos);
-		xpos = xpos / width;
-		ypos = ypos / height;
+		glm::mat4 look = glm::lookAt(
+			glm::vec3(100 * sin(u_time), 100 * cos(u_time), 100),
+			glm::vec3(0, 0, 0),
+			glm::vec3(0, 1, 0)
+		);
+
+		auto p = glm::perspective(glm::radians(45.f), ((float)width) / height, 1.f, 1000.f);
 
 		glUniform1f(glGetUniformLocation(program, "u_time"), u_time);
-		glUniform2d(glGetUniformLocation(program, "mousePos"), xpos, ypos);
-		*/
-
-		/*for (int i = 0; i < particules.size(); i++) {
-			particules[i].velocity += glm::vec3(0., -0.001, 0.) * u_time;
-			particules[i].position += particules[i].velocity * u_time;
-		}
-
-		glBufferSubData(GL_ARRAY_BUFFER, 0, nParticules * sizeof(Particule), particules.data());*/
+		glUniformMatrix4fv(glGetUniformLocation(program, "look"), 1, GL_FALSE, glm::value_ptr(look));
+		glUniformMatrix4fv(glGetUniformLocation(program, "p"), 1, GL_FALSE, glm::value_ptr(p));
 
 		glClear(GL_COLOR_BUFFER_BIT);
 
-		//glDrawArrays(GL_POINTS, 0, nParticules);
 		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+
+
+		glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size(), vertices.data());
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
+
+		if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+			glfwSetWindowShouldClose(window, GL_TRUE);
 	}
 	glfwDestroyWindow(window);
 	glfwTerminate();
