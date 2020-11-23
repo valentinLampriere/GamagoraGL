@@ -14,6 +14,8 @@
 #include <string>
 
 #include "stl.h"
+#include "texture.h"
+#include "OBJ_Loader.h"
 
 #define TINYPLY_IMPLEMENTATION
 //#include <tinyply.h>
@@ -131,13 +133,10 @@ int main(void)
 	glDebugMessageCallback(opengl_error_callback, nullptr);
 
 	// Load logo
-	std::vector<Triangle> triangles = ReadStl("buddha.stl");
-	std::vector<glm::vec3> vertices;
-	for (int i = 0; i < triangles.size(); i++) {
-		vertices.push_back(triangles[i].p0);
-		vertices.push_back(triangles[i].p1);
-		vertices.push_back(triangles[i].p2);
-	}
+	objl::Loader loader;
+	loader.LoadFile("Monstre.obj");
+	size_t nIndices = loader.LoadedMeshes[0].Indices.size();
+	size_t nVertices = loader.LoadedMeshes[0].Vertices.size();
 
 	// Shader
 	const auto vertex = MakeShader(GL_VERTEX_SHADER, "shader.vert");
@@ -154,16 +153,44 @@ int main(void)
 
 	glBindVertexArray(vao);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), vertices.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, nVertices * sizeof(objl::Vertex), loader.LoadedMeshes[0].Vertices.data(), GL_STATIC_DRAW);
+
+	GLuint elementbuffer;
+	glGenBuffers(1, &elementbuffer);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, nIndices * sizeof(unsigned int), loader.LoadedMeshes[0].Indices.data(), GL_STATIC_DRAW);
 
 	// Bindings
 	const auto indexPosition = glGetAttribLocation(program, "position");
-	glVertexAttribPointer(indexPosition, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), nullptr);
+	glVertexAttribPointer(indexPosition, 3, GL_FLOAT, GL_FALSE, sizeof(objl::Vertex), reinterpret_cast<GLvoid*>(offsetof(objl::Vertex, Position)));
 	glEnableVertexAttribArray(indexPosition);
 
+	const auto indexUv = glGetAttribLocation(program, "textCoord");
+	glVertexAttribPointer(indexUv, 2, GL_FLOAT, GL_FALSE, sizeof(objl::Vertex), reinterpret_cast<GLvoid*>(offsetof(objl::Vertex, TextureCoordinate)));
+	glEnableVertexAttribArray(indexUv);
+
+	const auto indexNormal = glGetAttribLocation(program, "normal");
+	glVertexAttribPointer(indexNormal, 3, GL_FLOAT, GL_FALSE, sizeof(objl::Vertex), reinterpret_cast<GLvoid*>(offsetof(objl::Vertex, Normal)));
+	glEnableVertexAttribArray(indexNormal);
+	
 	glPointSize(20.f);
 
 	glEnable(GL_PROGRAM_POINT_SIZE);
+
+	// Load Images
+	Image img1 = LoadImage("demondays.ppm");
+
+	// Create a texture
+	GLuint tex;
+	glCreateTextures(GL_TEXTURE_2D, 1, &tex);
+	glTextureStorage2D(tex, 1, GL_RGB8, img1.width, img1.height);
+
+	glTextureSubImage2D(tex, 0, 0, 0, img1.width, img1.height, GL_RGB, GL_UNSIGNED_BYTE, img1.data.data());
+	glBindTextureUnit(1, tex);
+
+
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LESS);
 
 	while (!glfwWindowShouldClose(window)) {
 		float u_time = glfwGetTime();
@@ -171,30 +198,36 @@ int main(void)
 
 		glfwGetFramebufferSize(window, &width, &height);
 
-		glm::mat4 look = glm::lookAt(
-			glm::vec3(100 * sin(u_time), 100 * cos(u_time), 100),
+		glViewport(0., 0., width, height);
+
+		glm::mat4 view = glm::lookAt(
+			glm::vec3(800 * sin(u_time), 800 * cos(u_time), 1000),
 			glm::vec3(0, 0, 0),
 			glm::vec3(0, 1, 0)
 		);
 
-		auto p = glm::perspective(glm::radians(45.f), ((float)width) / height, 1.f, 1000.f);
+		auto proj = glm::perspective(glm::radians(45.f), ((float)width) / height, 1.f, 500000.f);
 
+		glUniformMatrix4fv(glGetUniformLocation(program, "view"), 1, GL_FALSE, glm::value_ptr(view));
+		glUniformMatrix4fv(glGetUniformLocation(program, "proj"), 1, GL_FALSE, glm::value_ptr(proj));
+
+		glUniform1i(glGetUniformLocation(program, "tex"), 1);
 		glUniform1f(glGetUniformLocation(program, "u_time"), u_time);
-		glUniformMatrix4fv(glGetUniformLocation(program, "look"), 1, GL_FALSE, glm::value_ptr(look));
-		glUniformMatrix4fv(glGetUniformLocation(program, "p"), 1, GL_FALSE, glm::value_ptr(p));
+
 
 		glClear(GL_COLOR_BUFFER_BIT);
+		
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
 
-		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
-
-
-		glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size(), vertices.data());
+		glDrawElements(GL_TRIANGLES, nIndices, GL_UNSIGNED_INT, 0);
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 
 		if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 			glfwSetWindowShouldClose(window, GL_TRUE);
+
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	}
 	glfwDestroyWindow(window);
 	glfwTerminate();

@@ -1,12 +1,13 @@
 #version 450
 
 uniform float u_time;
-
-//in vec3 particule_color;
+uniform sampler2D tex;
 
 out vec4 color;
 
-void main() {
+in vec2 UV;
+in vec4 v_color;
 
-    color = vec4(vec3(1., 0., 0.), 1);
+void main() {
+    color = vec4(texture(tex, UV).rgb * v_color.rgb, 1);
 }
