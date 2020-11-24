@@ -132,11 +132,11 @@ int main(void)
 	// Callbacks
 	glDebugMessageCallback(opengl_error_callback, nullptr);
 
-	// Load logo
-	objl::Loader loader;
-	loader.LoadFile("Monstre.obj");
-	size_t nIndices = loader.LoadedMeshes[0].Indices.size();
-	size_t nVertices = loader.LoadedMeshes[0].Vertices.size();
+	// Load mesh
+	objl::Loader loaderMonstre;
+	loaderMonstre.LoadFile("Monstre.obj");
+	size_t nIndices = loaderMonstre.LoadedMeshes[0].Indices.size();
+	size_t nVertices = loaderMonstre.LoadedMeshes[0].Vertices.size();
 
 	// Shader
 	const auto vertex = MakeShader(GL_VERTEX_SHADER, "shader.vert");
@@ -153,12 +153,12 @@ int main(void)
 
 	glBindVertexArray(vao);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glBufferData(GL_ARRAY_BUFFER, nVertices * sizeof(objl::Vertex), loader.LoadedMeshes[0].Vertices.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, nVertices * sizeof(objl::Vertex), loaderMonstre.LoadedMeshes[0].Vertices.data(), GL_STATIC_DRAW);
 
 	GLuint elementbuffer;
 	glGenBuffers(1, &elementbuffer);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, nIndices * sizeof(unsigned int), loader.LoadedMeshes[0].Indices.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, nIndices * sizeof(unsigned int), loaderMonstre.LoadedMeshes[0].Indices.data(), GL_STATIC_DRAW);
 
 	// Bindings
 	const auto indexPosition = glGetAttribLocation(program, "position");
@@ -169,7 +169,8 @@ int main(void)
 	glVertexAttribPointer(indexUv, 2, GL_FLOAT, GL_FALSE, sizeof(objl::Vertex), reinterpret_cast<GLvoid*>(offsetof(objl::Vertex, TextureCoordinate)));
 	glEnableVertexAttribArray(indexUv);
 
-	const auto indexNormal = glGetAttribLocation(program, "normal");
+	const auto indexNormal = glGetAttribLocation(program, "normal_2");
+	std::cout << "indexNormal : " << indexNormal << "\n";
 	glVertexAttribPointer(indexNormal, 3, GL_FLOAT, GL_FALSE, sizeof(objl::Vertex), reinterpret_cast<GLvoid*>(offsetof(objl::Vertex, Normal)));
 	glEnableVertexAttribArray(indexNormal);
 	
@@ -178,7 +179,7 @@ int main(void)
 	glEnable(GL_PROGRAM_POINT_SIZE);
 
 	// Load Images
-	Image img1 = LoadImage("demondays.ppm");
+	Image img1 = LoadImage("textures/demondays.ppm");
 
 	// Create a texture
 	GLuint tex;
@@ -196,13 +197,15 @@ int main(void)
 		float u_time = glfwGetTime();
 		int width, height;
 
+		glm::vec3 lightPosition = glm::vec3(0, 500, 1333);
+
 		glfwGetFramebufferSize(window, &width, &height);
 
 		glViewport(0., 0., width, height);
 
 		glm::mat4 view = glm::lookAt(
-			glm::vec3(800 * sin(u_time), 800 * cos(u_time), 1000),
-			glm::vec3(0, 0, 0),
+			glm::vec3(-200 + 333 * sin(u_time), 800 + 333 * cos(u_time), 1000),
+			glm::vec3(-200, 500, 0),
 			glm::vec3(0, 1, 0)
 		);
 
@@ -214,9 +217,8 @@ int main(void)
 		glUniform1i(glGetUniformLocation(program, "tex"), 1);
 		glUniform1f(glGetUniformLocation(program, "u_time"), u_time);
 
+		glUniform3f(glGetUniformLocation(program, "lightPosition"), lightPosition.x, lightPosition.y, lightPosition.z);
 
-		glClear(GL_COLOR_BUFFER_BIT);
-		
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
 
 		glDrawElements(GL_TRIANGLES, nIndices, GL_UNSIGNED_INT, 0);
