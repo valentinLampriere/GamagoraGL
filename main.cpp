@@ -169,6 +169,7 @@ int main(void)
 	glVertexAttribPointer(indexUv, 2, GL_FLOAT, GL_FALSE, sizeof(objl::Vertex), reinterpret_cast<GLvoid*>(offsetof(objl::Vertex, TextureCoordinate)));
 	glEnableVertexAttribArray(indexUv);
 
+
 	const auto indexNormal = glGetAttribLocation(program, "normal_2");
 	std::cout << "indexNormal : " << indexNormal << "\n";
 	glVertexAttribPointer(indexNormal, 3, GL_FLOAT, GL_FALSE, sizeof(objl::Vertex), reinterpret_cast<GLvoid*>(offsetof(objl::Vertex, Normal)));

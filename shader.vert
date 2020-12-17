@@ -15,10 +15,11 @@ out vec3 normal;
 out vec3 pos;
 
 void main() {
+    
+    
     UV = textCoord;
     normal = normal_2;
     pos = position;
-
 
     gl_Position = proj * view * vec4(position, 1.0);
 }
